@@ -16,4 +16,4 @@
 #include <commctrl.h>
 #include <commdlg.h>
 #include <windowsx.h>
-
+#include <shlobj_core.h>

@@ -11,3 +11,4 @@ void show_table_lv(HWND hwnd, HWND hwndList, table_parent& table, int cxChar, in
 void show_vxbfr_lv(HWND hwnd, HWND hwndList, vxbuffer& vx_buffer, int cxChar, int cyChar, RECT rc, RECT rcTree);
 void show_str_lv(HWND hwnd, HWND hwndList, string_ref& strings, int index_i, int cxChar, int cyChar, RECT rcTree);
 void show_shdr_lv(HWND hwnd, HWND hwndList, shader_struct* shader, int cxChar, int cyChar, RECT rcTree);
+void hex_to_wchar(wchar_t* dst, char* src, int size);

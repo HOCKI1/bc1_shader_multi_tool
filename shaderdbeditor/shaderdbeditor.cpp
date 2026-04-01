@@ -16,14 +16,23 @@
 #include "g_variables.h"
 #include "editfuncs.h"
 #include "importfuncs.h"
+#include "assetc.h"
 
+#pragma comment(linker,"\"/manifestdependency:type='win32' \
+name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
+processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
+char* database_pool = nullptr;
+uint32_t db_pool_pos;
+
+vxbuffer* assetc_vx_buffers;
+uint32_t assetc_n_vx_buffers;
 edit_pool file_edit_pool;
 allocated_dbs allocated_db;
 WNDCLASSEX gridclass = {0};
 int iItem, iSubItem;
 bool shader_view = FALSE;
-HWND hwndTree, hwndList;
+HWND hwndTree, hwndList, hwndAsset,hwndMain;
 HWND hwndEdit;
 HANDLE hIcon;
 HMENU hMenu, hSubMenu, hDebugMenu;
@@ -39,16 +48,13 @@ lprm_storage* lprm_childs = new lprm_storage;
 lprm_storage* lprm_parents = new lprm_storage;
 const int shader_type = 8;
 char blank[90];
-
+const wchar_t* assetc_classname = L"AssetC";
 //setup converter
 using convert_type = std::codecvt_utf8<wchar_t>;
 std::wstring_convert<convert_type, wchar_t> converter;
 
 
-LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) //                                                      
-                                                                            // import strings function
-                                                                            // the db export must store the allocated blocks of imported databases for freeing after save
-                                                                            // export hlsl code function (debug). export texture list function (debug)
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)                                                                                                                                                                                                                                                                                                                                                    
 {
     bool rslt;
     HDC hdc;
@@ -65,7 +71,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) //
     int xPos;
     int yPos;
     std::stringstream box_message;
-    static database* dbptr;
+    static database* dbptr = nullptr;
 
     switch (msg)
     {
@@ -78,6 +84,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) //
             SendMessage(GetWindow(hwnd, GW_OWNER), WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
             SendMessage(GetWindow(hwnd, GW_OWNER), WM_SETICON, ICON_BIG, (LPARAM)hIcon);
         }
+        hwndMain = hwnd;
         MenuTool(hwnd,hMenu,hSubMenu, hDebugMenu);
         GetClientRect(hwnd, &rc);
         CreateTree(hwnd,hwndTree,rc);
@@ -88,7 +95,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) //
         ReleaseDC(hwnd, hdc);
         GetWindowRect(hwndTree,&rcTree);
         hwndList = create_lv(hwnd, rc, rcTree);
-        PARENT_WND_PROC = (WNDPROC)SetWindowLongW(hwndList, GWL_WNDPROC, (LONG)ListViewProc);
+        PARENT_WND_PROC = (WNDPROC)SetWindowLongPtrW(hwndList, GWLP_WNDPROC, (LONG_PTR)ListViewProc);
         HFONT defaultFont = CreateFont(16, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Arial");
         SendMessage(hwndList, WM_SETFONT, WPARAM(defaultFont), TRUE);
         int aval_width = rc.right - (rcTree.right - rcTree.left);
@@ -126,6 +133,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) //
                 dbptr = dbfirstload(dbfile,ptr_end);
                 dbfile += ptr_pos;   
                 new_db = export_db_init(dbptr,dbfile);
+                assetc_vx_buffers = new_db->vx_buffers;
+                assetc_n_vx_buffers = new_db->n_vx_buffers;
                 lprm_childs->lprms = new hti_lparam[100000];
                 lprm_parents->lprms = new hti_lparam[60];
                 lprm_childs->lprms_counter = 0;
@@ -246,12 +255,48 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) //
                 char output_name[400];
                 strncpy(output_name, ofn_db.lpstrFile, 400);
                 new_db = import_db(new_db, output_name);
+                assetc_vx_buffers = new_db->vx_buffers;
+                assetc_n_vx_buffers = new_db->n_vx_buffers;
             }          
             break;
         case ID_SAVE_DB:
             export_db(hwnd, new_db, szFileName,1);
             ZeroMemory(file_edit_pool.pool, 1000000 * sizeof(char));
             file_edit_pool.current_pos = 0;
+            break;
+        case ID_EXPORT_HLSL:
+        {
+            char dst_name[400];
+            BROWSEINFOA dst_folder = { 0 };
+            dst_folder.hwndOwner = hwnd;
+            dst_folder.lpszTitle = "Select Folder";
+            dst_folder.ulFlags = BIF_USENEWUI;
+            LPITEMIDLIST lpIDList = ::SHBrowseForFolderA(&dst_folder);
+            if (lpIDList)
+            {
+                SHGetPathFromIDListA(lpIDList, dst_name);
+                export_hlsl(new_db, dst_name);
+            }
+            break;
+        }
+        case ID_ASSETC_START:     
+            EnableMenuItem(hMenu, ID_ASSETC_START, MF_DISABLED);
+            hwndAsset = CreateWindowEx(
+                WS_EX_CLIENTEDGE,
+                assetc_classname,
+                L"Asset Creator",
+                WS_OVERLAPPEDWINDOW| WS_EX_RIGHTSCROLLBAR,
+                CW_USEDEFAULT, CW_USEDEFAULT,500, 800,
+                hwnd, NULL, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL);
+            if (hwndAsset == NULL)
+            {
+                MessageBoxA(NULL, "Window Creation Failed!", "Error!",
+                    MB_ICONEXCLAMATION | MB_OK);
+                return 0;
+            }
+            break;
+        case ID_ASSETC_ENABLE_MENU_BTN:
+            EnableMenuItem(hMenu, ID_ASSETC_START, MF_ENABLED);
             break;
         }
 
@@ -347,6 +392,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) //
                  lparam->selected = (!lparam->selected);
                  break;
              }
+             case ID_VS_HLSL_SHADER:
+             {
+                 new_db->shaders[lparam->shader_index].table_members[lparam->hti_index].vs_shader->lparam_data.selected = (!lparam->selected);
+                 lparam->selected = (!lparam->selected);
+                 break;
+             }
+             case ID_PS_HLSL_SHADER:
+             {
+                 new_db->shaders[lparam->shader_index].table_members[lparam->hti_index].ps_shader->lparam_data.selected = (!lparam->selected);
+                 lparam->selected = (!lparam->selected);
+                 break;
+             }
         }       
     }  
     case WM_NOTIFY:
@@ -437,7 +494,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) //
                 delete[] szBuffer;
                 switch (lparam->hti_type)
                 {
-                case 1: // TEXTURE LIST
+                case ID_TEXTURELIST: // TEXTURE LIST
                 {
                     GetClientRect(hwnd, &rc);
                     GetWindowRect(hwndTree, &rcTree);
@@ -445,11 +502,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) //
                     if (!shader_view)
                     {
                         cindex = lparam->hti_index;
-                        /* OLD CODE
-                        int test = lprm_childs->lprms_counter;
-                        int txe_container_size = (int)*dbptr->txeptr[lparam->hti_index].ntxt + (int)*dbptr->txeptr[lparam->hti_index].nparams + (int)*dbptr->txeptr[lparam->hti_index].ntypes;
-                        clean_and_renew_generic(hwnd, hwnd_container, txe_container_size);
-                        show_txlist(hwnd, dbptr->txeptr[lparam->hti_index], cxChar, cyChar, rc, rcTree, hwnd_container);*/
                         show_txlist_lv(hwnd,hwndList, dbptr->txeptr[lparam->hti_index], cxChar, cyChar, rc, rcTree);
                     }
                     else
@@ -458,52 +510,37 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) //
                         int table_index = lparam->hti_index;
                         if (tvi.hItem == new_db->shaders[cindex].table_members[table_index].hti_table_childs[2]) // texture list empty 
                         {
-                            /* OLD CODE
-                            int cont_size = (int)*new_db->shaders[cindex].table_members->txeptr_null->ntxt + (int)*new_db->shaders[cindex].table_members->txeptr_null->nparams
-                                + (int)*new_db->shaders[cindex].table_members->txeptr_null->ntypes;
-                            clean_and_renew_generic(hwnd, hwnd_container, cont_size);
-                            show_txlist(hwnd, *new_db->shaders[cindex].table_members->txeptr_null, cxChar, cyChar, rc, rcTree, hwnd_container);*/
                             show_txlist_lv(hwnd, hwndList, *new_db->shaders[cindex].table_members[table_index].txeptr_null, cxChar, cyChar, rc, rcTree);
 
                         }
                         else if (tvi.hItem == new_db->shaders[cindex].table_members[table_index].hti_table_childs[3]) // texture list 2 
                         {
-
-                           /* OLD CODE 
-                           int cont_size = (int)*new_db->shaders[cindex].table_members->txeptr_2->ntxt + (int)*new_db->shaders[cindex].table_members->txeptr_2->nparams
-                                + (int)*new_db->shaders[cindex].table_members->txeptr_2->ntypes;
-                            clean_and_renew_generic(hwnd, hwnd_container, cont_size);
-                            show_txlist(hwnd, *new_db->shaders[cindex].table_members->txeptr_2, cxChar, cyChar, rc, rcTree, hwnd_container);*/
-
                             show_txlist_lv(hwnd, hwndList, *new_db->shaders[cindex].table_members[table_index].txeptr_2, cxChar, cyChar, rc, rcTree);
                         }
                     }
                     break;
                 }
-                case 3:   // VERTEX SHADER
+                case ID_VS_HLSL_SHADER:   // VERTEX SHADER
                 {
                     GetClientRect(hwnd, &rc);
                     GetWindowRect(hwndTree, &rcTree);
-                 //   clean_and_renew_generic(hwnd, hwnd_container, 4);
                     window_reset(hwnd, hwndTree, rc, rcTree);
                     if (!shader_view)
                     {
                         cindex = lparam->hti_index;
                         int test = lprm_childs->lprms_counter;
-                        //show_vs(hwnd, dbptr->vs_shader[cindex], cxChar, cyChar, rcTree, hwnd_container);
                         show_vs_lv(hwnd, hwndList, dbptr->vs_shader[cindex], cxChar, cyChar, rc, rcTree);
                     }
                     else
                     {
                         cindex = lparam->shader_index;
                         int table_index = lparam->hti_index;
-                       // show_vs(hwnd, *new_db->shaders[cindex].table_members[table_index].vs_shader, cxChar, cyChar, rcTree, hwnd_container);
                         show_vs_lv(hwnd, hwndList, *new_db->shaders[cindex].table_members[table_index].vs_shader, cxChar, cyChar, rc, rcTree);
 
                     }
                     break;
                 }
-                case 4: // PIXEL SHADER
+                case ID_PS_HLSL_SHADER: // PIXEL SHADER
                 {
                     GetClientRect(hwnd, &rc);
                     GetWindowRect(hwndTree, &rcTree);
@@ -548,15 +585,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) //
                     if (!shader_view)
                     {
                         cindex = lparam->hti_index;
-                      //  clean_and_renew_generic(hwnd, hwnd_container, dbptr->vx_buffers[cindex].n_wnds);
-                       // show_vbuffer(hwnd, dbptr->vx_buffers[cindex], cxChar, cyChar, rcTree, hwnd_container);
                         show_vxbfr_lv(hwnd, hwndList, dbptr->vx_buffers[cindex], cxChar, cyChar, rc, rcTree);
                     }
                     else
                     {
                         cindex = lparam->hti_index;
-                //        clean_and_renew_generic(hwnd, hwnd_container, new_db->mesh_refs[cindex].vx_buffer->n_wnds);
-                  //      show_vbuffer(hwnd, *new_db->mesh_refs[cindex].vx_buffer, cxChar, cyChar, rcTree, hwnd_container);
                         show_vxbfr_lv(hwnd, hwndList, *new_db->mesh_refs[cindex].vx_buffer, cxChar, cyChar,rc, rcTree);
 
                     }
@@ -566,7 +599,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) //
                 {
                     GetClientRect(hwnd, &rc);
                     GetWindowRect(hwndTree, &rcTree);
-                //    clean_and_renew_generic(hwnd, hwnd_container, 1);
                     window_reset(hwnd, hwndTree, rc, rcTree);
                     if (!shader_view)
                     {
@@ -637,6 +669,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) //
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR args, int ncmdshow) {
     WNDCLASSEX wc;
+    WNDCLASSEX wc_assetc;
     HWND hwnd;
     MSG Msg;
     hIcon = LoadImage(0, _T("logof.ico"), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_LOADFROMFILE);
@@ -646,12 +679,26 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR args, int ncmdsho
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 1;
     wc.hInstance = hInst;
-    wc.hIcon = LoadIcon(wc.hInstance, MAKEINTRESOURCE(EXE_ICON));
+    wc.hIcon = 0;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW);
     wc.lpszMenuName = NULL;
     wc.lpszClassName = L"Window Class";
-    wc.hIconSm = LoadIcon(wc.hInstance, MAKEINTRESOURCE(EXE_ICON));
+    wc.hIconSm = 0;
+
+    wc_assetc.cbSize = sizeof(WNDCLASSEX);
+    wc_assetc.style = 0;
+    wc_assetc.lpfnWndProc = assetc_wndproc;
+    wc_assetc.cbClsExtra = 0;
+    wc_assetc.cbWndExtra = 1;
+    wc_assetc.hInstance = hInst;
+    wc_assetc.hIcon = LoadIcon(wc_assetc.hInstance, L"logof.ico");
+    wc_assetc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc_assetc.hbrBackground = (HBRUSH)(COLOR_WINDOW);
+    wc_assetc.lpszMenuName = NULL;
+    wc_assetc.lpszClassName = assetc_classname;
+    wc_assetc.hIconSm = LoadIcon(wc_assetc.hInstance, L"logof.ico");
+
 
     if (!RegisterClassEx(&wc))
     {
@@ -659,7 +706,12 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR args, int ncmdsho
             MB_ICONEXCLAMATION | MB_OK);
         return 0;
     }
-
+    if (!RegisterClassEx(&wc_assetc))
+    {
+        MessageBox(NULL, L"Window Registration Failed!", L"Error!",
+            MB_ICONEXCLAMATION | MB_OK);
+        return 0;
+    }
     hwnd = CreateWindowEx(
         WS_EX_CLIENTEDGE,
         L"Window Class",

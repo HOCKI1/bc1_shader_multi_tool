@@ -19,7 +19,7 @@ char* alloc_db(FILE* input)
 // merges databases, doesnt check for mesh or shader names existence. tables get assigned a custom ID to avoid collisions (even though I dont believe that would ever be the case) 
 // it does check for existing vertex buffers however
 // vertex, pixel shaders and tables need to be patched 
-database_export* import_db(database_export* old_db, char* target)          // check vxbuffers, at last, patch the table references at the end. 
+database_export* import_db(database_export* old_db, char* target)
 {
 	char base_guid[25] = "000102030405060708090A0B";
 	uint64_t half1 = 0x0807060504030201;
@@ -152,4 +152,50 @@ database_export* import_db(database_export* old_db, char* target)          // ch
 	delete[] old_db->vx_buffers;
 	delete old_db;
 	return new_db;
+}
+
+
+void import_str(database_export*& old_db, char* target_file) // test this function later. it should work
+{
+	database* temp = new database;
+	FILE* input = fopen(target_file, "r+b");
+	void* strfile = alloc_db(input);
+	allocated_db.mem_blocks[allocated_db.used_slots] = (char*)strfile;
+	allocated_db.used_slots++;
+	vbufferslook(strfile, temp);
+	uint32_t* nelements = (uint32_t*)strfile;
+	temp->n_strings[2] = *nelements;
+	temp->strings[2] = new string_ref[*nelements];
+	string_pass(strfile, temp, *nelements, temp->strings[2], 2);
+
+	uint32_t new_vbuffers = 0;
+	uint32_t new_vbuffers_idx[150];
+	for (int i = 0; i < temp->n_vx_buffers; i++)
+	{
+		if (seek_guid_vx(old_db->n_vx_buffers, old_db->vx_buffers, temp->vx_buffers[i].vxbuffer_id) == -1)
+		{
+			new_vbuffers_idx[new_vbuffers] = i;
+			new_vbuffers++;
+		}
+	}
+	old_db->vx_buffers = new vxbuffer[new_vbuffers + old_db->n_vx_buffers];
+	memcpy(old_db->vx_buffers, old_db->vx_buffers, sizeof(vxbuffer) * old_db->n_vx_buffers);
+	for (int i = 0; i < new_vbuffers; i++)
+	{
+		memcpy(&old_db->vx_buffers[old_db->n_vx_buffers + i], &temp->vx_buffers[new_vbuffers_idx[i]], sizeof(vxbuffer) * 1);
+	}
+	int z;
+	for (int i = 0; i < temp->n_strings[2]; i++)
+	{
+		z = seek_guid_vx(old_db->n_vx_buffers + new_vbuffers, old_db->vx_buffers, temp->strings[2][i].guid);
+		temp->strings[2][i].vx_buffer = &old_db->vx_buffers[z];
+	}
+	old_db->mesh_refs = new string_ref[old_db->n_mesh_refs + temp->n_strings[2]];
+	memcpy(old_db->mesh_refs, old_db->mesh_refs, sizeof(string_ref) * old_db->n_mesh_refs);
+	memcpy(&old_db->mesh_refs[old_db->n_mesh_refs], temp->strings[2], sizeof(string_ref) * temp->n_strings[2]);
+
+	delete[] temp->vx_buffers;
+	delete[] temp->strings[2];
+	delete temp;
+	return;
 }

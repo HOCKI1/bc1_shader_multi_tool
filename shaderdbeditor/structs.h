@@ -14,8 +14,8 @@ extern const int ps_type;
 extern WNDPROC ORIGINAL_EDIT_PROC;
 extern WNDPROC PARENT_WND_PROC;
 extern int iItem, iSubItem;
-extern HWND hwndEdit, hwndList,hwndTree;
-
+extern HWND hwndEdit, hwndList,hwndTree, hwndAsset;
+extern HANDLE hIcon;
 
 typedef struct {
 	bool edit_enable;

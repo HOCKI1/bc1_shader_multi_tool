@@ -12,4 +12,4 @@ void show_str(HWND hwnd, string_ref& strings, int index_i, int cxChar, int cyCha
 void show_txlist(HWND hwnd, TxE &txeptr, int cxChar, int cyChar, RECT rc, RECT rcTree, generic_hwnds*& hwnd_container);
 void show_shdr(HWND hwnd, shader_struct* shader, int cxChar, int cyChar, RECT rcTree, generic_hwnds*& hwnd_container);
 
-
+void hex_to_string(char* id, char* src, int size);

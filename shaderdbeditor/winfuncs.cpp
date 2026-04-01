@@ -172,6 +172,7 @@ bool show_shaders(HWND hwndTV, database_export* &new_db, int& treesize)
                 lprm_childs->lprms[lprm_childs->lprms_counter].hti_index = j; // use table index here
                 lprm_childs->lprms[lprm_childs->lprms_counter].hti_type = table_types[k];
                 lprm_childs->lprms[lprm_childs->lprms_counter].shader_index = i;
+                lprm_childs->lprms[lprm_childs->lprms_counter].selected = FALSE;
                 new_db->shaders[i].table_members[j].hti_table_childs[k] = add_child(hwndTV, (LPTSTR)table_childs[k], (shader_level + 2), &lprm_childs->lprms[lprm_childs->lprms_counter], new_db->shaders[i].table_members[j].table_item);
                 lprm_childs->lprms_counter++;
             }
@@ -183,6 +184,7 @@ bool show_shaders(HWND hwndTV, database_export* &new_db, int& treesize)
         item_mesh = (LPTSTR)mesh_name;
         lprm_childs->lprms[lprm_childs->lprms_counter].hti_index = i;
         lprm_childs->lprms[lprm_childs->lprms_counter].hti_type = ID_MESH_NODE;
+        lprm_childs->lprms[lprm_childs->lprms_counter].selected = FALSE;
         new_db->mesh_refs[i].str_item = add_child(hwndTV,item_mesh,3,&lprm_childs->lprms[lprm_childs->lprms_counter],new_db->mesh_p_node);
         lprm_childs->lprms_counter++;
         new_db->mesh_refs[i].vx_buffer->lparam_data.hti_index = i;

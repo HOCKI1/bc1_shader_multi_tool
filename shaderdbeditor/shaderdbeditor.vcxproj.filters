@@ -27,12 +27,6 @@
     <ClInclude Include="shaderdbeditor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="resource1.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="resource2.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="funcs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -63,7 +57,43 @@
     <ClInclude Include="importfuncs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="resource3.h">
+    <ClInclude Include="assetc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="assetc_meshset_funcs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="assetc_export_funcs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="assetc_structs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="assetc_meshdata_funcs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="assetc_fbx_funcs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="assetc_vbuf_actuators.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="half.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="assetc_import_funcs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXMath\DirectXMeshP.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXMesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="scoped.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="assetc_txt_funcs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -107,6 +137,36 @@
     <ClCompile Include="importfuncs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="assetc_wndproc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="assetc_meshset_funcs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="assetc_export_funcs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="assetc_fbx_funcs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="assetc_meshdata_funcs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="assetc_vbuf_actuators.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="assetc_import_funcs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXMeshTangentFrame.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="assetc_txt_funcs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXMeshNormals.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="logof.ico">
@@ -117,5 +177,11 @@
     <ResourceCompile Include="shaderdbeditor.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="libfbxsdk.dll" />
+    <None Include="DirectXMesh.inl">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

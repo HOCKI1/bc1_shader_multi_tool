@@ -7,12 +7,6 @@ const uint32_t txe_e_size = 140;
 const uint32_t txe_p_size = 56;
 const uint32_t txe_t_size = 40;
 
-std::vector <int> index_debug;
-std::vector <int>::iterator it;
-std::vector <int> index_debug_2;
-std::vector <int>::iterator it_2;
-
-
 void txequicklook(void* &dbfile, database*& dbptr);
 void d3dparamslook(void* &dbfile, database*& dbptr);
 void vslook(void*& dbfile, database*& dbptr);
@@ -270,10 +264,6 @@ void tableslook(void* &dbfile,database* &dbptr)
 	table_parent* table_p = new table_parent[*nelements];
 	table_child* table_c = new table_child[*nelements];
 	char* dummy = (char*)dbfile + 4;
-
-	std::vector <int> index_debug_vs;
-	std::vector <int>::iterator it_vs;
-
 	for (uint32_t i = 0; i < *nelements; i++) 
 	{
 		table_p[i].element_id = dummy;
@@ -333,15 +323,8 @@ void pslook(void*& dbfile, database*& dbptr)
 		pxshdr[i].total_size = (dummy - pxshdr[i].psid);
 		pxshdr[i].txeptr = &dbptr->txeptr[*pxshdr[i].txeindex];
 		pxshdr[i].initialize_items = TRUE;
-
-		index_debug.push_back(*pxshdr[i].txeindex);
-
+		pxshdr[i].lparam_data.selected = FALSE;
 	}
-	// debug
-	std::sort(index_debug.begin(), index_debug.end());
-	it = std::unique(index_debug.begin(), index_debug.end());
-	int size = std::distance(index_debug.begin(), it);
-	//
 	dbptr->n_ps_shader = *nelements;
 	dbptr->ps_shader = pxshdr;
 	dbfile = dummy;
@@ -379,6 +362,7 @@ void vslook(void*& dbfile, database*& dbptr)
 		vxshdr[i].total_size = (dummy - vxshdr[i].vsid);
 		vxshdr[i].txeptr = &dbptr->txeptr[*vxshdr[i].txeindex];
 		vxshdr[i].initialize_items = TRUE;
+		vxshdr[i].lparam_data.selected = FALSE;
 	}
 	dbptr->n_vs_shader = *nelements;
 	dbptr->vs_shader = vxshdr;
@@ -547,22 +531,3 @@ TxE* txe_individual_assign(char* src)
 	return &txelist[0];
 }
 
-
-
-/*void txe_destructor(TxE* src)
-{ 
-	txe_e* e = nullptr;
-	txe_p* p = nullptr;
-	txe_t* t = nullptr;
-	if (src->nparams > 0)
-	{
-		p = src->paramptrs;
-		for (int i = 0; i < *src->nparams; i++)
-		{
-		
-		}
-	    delete src->paramptrs
-	
-	}
-
-}*/

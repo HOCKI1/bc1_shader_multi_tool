@@ -1,6 +1,6 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource3.h"
+#include "Resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -27,7 +27,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 1 TEXTINCLUDE 
 BEGIN
-    "resource3.h\0"
+    "Resource.h\0"
 END
 
 2 TEXTINCLUDE 
@@ -53,6 +53,74 @@ END
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
 IDI_ICON1               ICON                    "logof.ico"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_PROPPAGE_MEDIUM DIALOGEX 0, 0, 262, 41
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_DISABLED | WS_BORDER
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    LTEXT           "Static",IDC_STATIC,9,8,35,11
+    LISTBOX         IDC_LIST1,9,21,181,13,LBS_SORT | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Button2",IDC_BUTTON2,199,20,56,14
+END
+
+ID_ASSETC_IMPORT_GENERIC_DATA DIALOGEX 0, 0, 252, 124
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_DISABLED | WS_BORDER
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    LTEXT           "Output Name",IDC_STATIC,7,9,47,11
+    EDITTEXT        IDC_OUTPUT_FILE,66,8,179,13,ES_AUTOHSCROLL
+    LTEXT           "Number of LODs",IDC_STATIC,7,27,53,8
+    COMBOBOX        IDC_NLODS_SELECTOR,66,25,48,30,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Manual Bounding Box",IDC_MANUAL_BBOX,"Button",BS_AUTORADIOBUTTON,160,27,84,10
+    EDITTEXT        IDC_BBOX_XMIN,7,47,37,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_BBOX_YMIN,49,47,36,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_BBOX_ZMIN,89,47,36,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_BBOX_XMAX,129,47,36,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_BBOX_YMAX,170,47,36,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_BBOX_ZMAX,209,47,36,14,ES_AUTOHSCROLL
+    LTEXT           "Render Order",IDC_STATIC,7,67,48,8
+    EDITTEXT        IDC_EDIT9,60,64,43,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT10,107,64,43,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT11,154,64,44,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT12,202,64,43,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_ASSETC_MESH_DBX_FILE,45,83,200,14,ES_AUTOHSCROLL
+    LTEXT           "Mesh DBX ",IDC_STATIC,7,85,36,8
+    EDITTEXT        IDC_ASSETC_LODS_FILE,67,102,178,14,ES_AUTOHSCROLL
+    LTEXT           "LODs settings file",IDC_STATIC,7,104,56,8
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_PROPPAGE_MEDIUM, DIALOG
+    BEGIN
+        LEFTMARGIN, 9
+        RIGHTMARGIN, 255
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 34
+    END
+
+    ID_ASSETC_IMPORT_GENERIC_DATA, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 245
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 116
+    END
+END
+#endif    // APSTUDIO_INVOKED
 
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////

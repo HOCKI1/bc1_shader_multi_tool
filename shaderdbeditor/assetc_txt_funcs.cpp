@@ -1,0 +1,346 @@
+#include "assetc_txt_funcs.h"
+
+char* get_line_end(char* src)
+{
+	char* string_end = src;
+	while (*string_end > 10)
+	{
+		string_end++;
+	}
+	return string_end;
+}
+
+char* skip_text(char* src)
+{
+	char* string_end = src;
+	while ((*string_end > 32) && (*string_end < 127))
+	{
+		string_end++;
+	}
+	return string_end;
+}
+
+char* skip_space(char* src)
+{
+	while (*src < 33)
+	{
+		src++;
+	}
+	return src;
+}
+
+
+shape_struct* get_shapes(char** strings_array, u32 line_count, u32* n_shapes)
+{
+	char* text_pos;
+	while (!(strstr(strings_array[line_count], "Number of Shapes:")))
+	{
+		line_count++;
+	}
+	text_pos = strstr(strings_array[line_count], ":") + 1;
+	while (*text_pos < 33)
+	{
+		text_pos++;
+	}
+	*n_shapes = atoi(text_pos);
+	shape_struct* shapes = (shape_struct*)&ac_structs_pool->pool[ac_structs_pool->current_pos];
+	ac_structs_pool->current_pos += sizeof(shape_struct) * (*n_shapes);
+	while (!(strstr(strings_array[line_count], "Shapes info")))
+	{
+		line_count++;
+	}
+	line_count += 2;
+	char* bar_index;
+	char* line_end;
+	u32 line_length, j, k;
+	for (int i = 0; i < *n_shapes; i++)
+	{
+		text_pos = strstr(strings_array[line_count], ":") + 1;
+		shapes[i].name = (char*)&ac_data_pool->pool[ac_data_pool->current_pos];
+		ac_data_pool->current_pos += 64;
+		while ((*text_pos < 33) || (*text_pos > 126))
+		{
+			text_pos++;
+		}
+		line_end = get_line_end(text_pos);
+		line_length = line_end - text_pos;
+		strncpy(shapes[i].name, text_pos, line_length);
+		line_count++;
+		text_pos = strstr(strings_array[line_count], ":") + 1;
+		shapes[i].hash = strtoul(text_pos, 0, 10);
+		line_count++;
+		text_pos = strstr(strings_array[line_count], ":") + 1;
+		line_end = get_line_end(text_pos);
+		line_length = line_end - text_pos;
+		j = 0;
+		k = 0;
+		while (j < line_length - 1)
+		{
+			while ((*text_pos < 33) || (*text_pos > 126))
+			{
+				text_pos++;
+				j++;
+			}
+			line_end = text_pos;
+			shapes[i].bounding_box[k] = strtof(text_pos, 0);
+			k++;
+			while ((*line_end > 32) && (*line_end < 126))
+			{
+				line_end++;
+				j++;
+			}
+			text_pos = line_end;
+		}
+		line_count++;
+		text_pos = strstr(strings_array[line_count], ":") + 1;
+		line_end = get_line_end(text_pos);
+		line_length = line_end - text_pos;
+		j = 0;
+		k = 9;
+		while (j < line_length - 1)
+		{
+			while ((*text_pos < 33) || (*text_pos > 126))
+			{
+				text_pos++;
+				j++;
+			}
+			line_end = text_pos;
+			shapes[i].transforms[k] = strtof(text_pos, 0);
+			k++;
+			while ((*line_end > 32) && (*line_end < 126))
+			{
+				line_end++;
+				j++;
+			}
+			text_pos = line_end;
+		}
+		shapes[i].transforms[0] = 1.0;
+		shapes[i].transforms[4] = 1.0;
+		shapes[i].transforms[8] = 1.0;
+		line_count += 4;
+	}
+	return shapes;
+}
+
+
+char** parse_txt_generic(char* txt_file,char* buffer,char* line_ptrs,uint32_t* n_lines)
+{
+	char chararray[512] = { 0 };
+	char** strings_array = (char**)line_ptrs;
+	uint32_t str_length, data_begin, data_end;
+	uint32_t line_count = 0;
+	uint32_t txt_buf_pos = 0;
+	uint32_t current_line;
+	FILE* txt_config = fopen(txt_file, "r");
+	while (fgets(&chararray[0], sizeof(chararray), txt_config))
+	{
+		str_length = strlen(&chararray[0]) + 1;
+		memcpy(&buffer[txt_buf_pos], &chararray[0], str_length);
+		strings_array[line_count] = &buffer[(txt_buf_pos)];
+		txt_buf_pos += str_length + 1;
+		line_count++;
+	}
+	*n_lines = line_count;
+	fclose(txt_config);
+	return strings_array;
+}
+
+
+FILE* create_txt_file(char* filename)
+{
+	FILE* file = fopen(filename, "w");
+	return file; 
+}
+
+
+void write_ro_only(FILE* file, meshdata_plus_info* meshdata_info)
+{
+	uint8_t* ro_val_ptr;
+	for (int i = 0; i < 4; i++)
+	{
+		fprintf(file, "Render Order %u: ", i);
+		ro_val_ptr = meshdata_info->ro_vals[i];
+		for (int j = 0; j < meshdata_info->ro[i]; j++)
+		{
+			fprintf(file, "%u ", *ro_val_ptr);
+			ro_val_ptr++;
+		}
+		fprintf(file, "\n");
+	}
+	return;
+}
+
+
+
+void write_type_only(FILE* file, int mesh_type)
+{
+	if (mesh_type == 0)
+	{
+		fprintf(file, "Asset Type: rigid \n");
+		return;
+	}
+	else if (mesh_type == 2)
+	{
+		fprintf(file, "Asset Type: composite \n");
+		return;
+	}
+	else if ((mesh_type == 3) || (mesh_type == 4))
+	{
+		fprintf(file, "Asset Type: tree \n");
+		return;
+	}
+	else
+	{
+		fprintf(file, "Asset Type: skinned \n");
+		fprintf(file, "\n\n");
+		fprintf(file, "-----------------------------------------\n\n");
+		return;
+	}
+}
+
+
+void write_meshdata_info(FILE* file, meshdata_node* nodes, meshdata_plus_info* meshdata_info, int n_nodes)
+{
+	uint8_t* ro_val_ptr;
+	fprintf(file, "MeshData info (lod0 only)\n\n");
+	fprintf(file, "Number of Meshdata Nodes: %u\n", n_nodes);
+	for (int i = 0; i < n_nodes; i++)
+	{
+		fprintf(file, "Node %u: ", i);
+		fprintf(file, "%s \n", nodes[i].name);
+	}
+	fprintf(file, "\n");
+	write_ro_only(file, meshdata_info);
+	fprintf(file, "\n");
+	fprintf(file, "-----------------------------------------\n\n");
+}
+
+void write_config(FILE* file)
+{
+	fprintf(file, "\n");
+	fprintf(file, "Config (For FBX2Havok converter only. User defined or generated by Havok2FBX)\n\n");
+	fprintf(file, "Use Shape Positions: \n");
+	fprintf(file, "Use Shape BBox: \n");
+	fprintf(file, "Use Shape Material Indices: \n");
+	fprintf(file, "Havok Material Names: \n");
+	fprintf(file, "Referenced Objects: \n");
+	fprintf(file, "Referenced Object Name Hashes: \n");
+	fprintf(file, "Referenced Object Indices:\n");
+	fprintf(file, "Has RigidBody info: false\n\n");
+	fprintf(file, "-----------------------------------------\n\n");
+	return;
+}
+
+void write_meshset_info(FILE* file, uint32_t mesh_type, uint32_t n_shapes,meshset_lod* lod,char* lod_file)
+{
+	fprintf(file, "MeshSet info (lod0 only)\n\n");
+	if (mesh_type == 0)
+	{
+		fprintf(file, "Asset Type: rigid \n");
+	}
+	else if (mesh_type == 2)
+	{
+		fprintf(file, "Asset Type: composite \n");
+	}
+	else if ((mesh_type == 3) || (mesh_type == 4))
+	{
+		fprintf(file, "Asset Type: tree \n");
+	}
+	else
+	{
+		fprintf(file, "Asset Type: skinned \n");
+		fprintf(file, "\n\n");
+		fprintf(file, "-----------------------------------------\n\n");
+		return;
+	}
+	fprintf(file, "LOD Settings file: %s \n", lod_file);
+	fprintf(file, "Mesh DBX settings: %s \n", lod->shader_sets[0].mesh_dbx_path);
+	for (int i = 0; i < lod->n_shaders_per_set;i++)
+	{
+		fprintf(file, "Shader %u:", i);
+		fprintf(file, " %s \n", lod->shader_sets[0].shaders[i]);
+	}
+	fprintf(file, "\n");
+	if (mesh_type == 0)
+	{
+		fprintf(file, "Number of Shapes: 1 \n");
+	}
+	else if (mesh_type == 2)
+	{
+		fprintf(file, "Number of Shapes: %u \n", n_shapes);
+	}
+	else if (mesh_type == 3)
+	{
+		fprintf(file, "Number of Shapes: %u \n", n_shapes);
+	}
+	fprintf(file, "\n");
+	fprintf(file, "-----------------------------------------\n\n");
+    return;
+}
+
+void write_shapes_composite(FILE* file, uint8_t* shapes_subdivision, uint32_t n_shapes,shape_struct* shapes)
+{
+	fprintf(file, "Number of Shapes: %u \n", n_shapes);
+	fprintf(file, "Shapes info\n\n");
+	for (int i = 0; i < n_shapes; i++)
+	{
+		fprintf(file, "Shape Name: %s", shapes[i].name);
+		fprintf(file, "\n");
+		fprintf(file, "Shape Hash: %u", shapes[i].hash);
+		fprintf(file, "\n");
+		fprintf(file, "Shape Bounding Box:");
+		for (int j = 0; j < 6; j++)
+		{
+			fprintf(file, " %f ", shapes[i].bounding_box[j]);
+		}
+		fprintf(file, "\n");
+		fprintf(file, "Shape Position:");
+		for (int j = 0; j < 3; j++)
+		{
+			fprintf(file, " %f ", shapes[i].transforms[j + 9]);
+		}
+		fprintf(file, "\n");
+		fprintf(file, "Shape Division: %u", shapes_subdivision[i]);
+		fprintf(file, "\n");
+		fprintf(file, "HavokMaterial Index: \n\n");
+	}
+	fprintf(file, "-----------------------------------------\n\n");
+	return;
+}
+
+void write_shapes_rigid(FILE* file, float* bbox, char* txt_file_name)
+{
+	char* _mesh_index = strstr(txt_file_name, "_Mesh");
+	char temp[300];
+	ZeroMemory(temp, 300);
+	int str_length;
+	if (_mesh_index)
+	{
+		str_length = _mesh_index - txt_file_name;
+		strncpy(&temp[0], txt_file_name, str_length);
+	}
+	else
+	{
+		str_length = strlen(txt_file_name);
+		strncpy(&temp[0], txt_file_name, str_length + 1);
+	}
+	fprintf(file, "Shapes info\n\n");
+	fprintf(file, "Shape Name: %s", &temp[0]);
+	fprintf(file, "\n");
+	std::string hashed(&temp[0]);
+	fprintf(file, "Shape hash: %u", shapenamehasher(hashed));
+	fprintf(file, "\n");
+	fprintf(file, "Shape Bounding Box:");
+	for (int j = 0; j < 6; j++)
+	{
+		fprintf(file, " %f ", bbox[j]);
+	}
+	fprintf(file, "\n");
+	fprintf(file, "Shape Position: 0.0 0.0 0.0");
+	fprintf(file, "\n");
+	fprintf(file, "Shape Division: 1");
+	fprintf(file, "\n");
+	fprintf(file, "HavokMaterial Index: \n\n");
+	fprintf(file, "-----------------------------------------\n\n");
+	return;
+}

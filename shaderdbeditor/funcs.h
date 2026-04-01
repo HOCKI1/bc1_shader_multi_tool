@@ -29,6 +29,8 @@ void enable_menu(HWND hwnd, HMENU& hMenu, HMENU& hSubMenu, HMENU &hDebugMenu);
 
 // dbfuncs.cpp
 database* dbfirstload(void* dbfile, uint32_t* ptr_end);
+void vbufferslook(void*& dbfile, database*& dbptr);
+void string_pass(void*& dbfile, database*& dbptr, uint32_t elements, string_ref*& str_ref, int pass);
 shader_struct* build_shaders(void* dbfile, database*& dbptr, string_ref* &systems_ref);
 database_export* export_db_init(database*& dbptr, void* dbfile);
 TxE* txe_individual_assign(char* src);

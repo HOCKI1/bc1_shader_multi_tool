@@ -1,8 +1,9 @@
 #include "boilerplate.h"
+#include "Resource.h"
 
-const int txe_type = 1;
-const int vs_type = 3;
-const int ps_type = 4;
+const int txe_type = ID_TEXTURELIST;
+const int vs_type = ID_VS_HLSL_SHADER;
+const int ps_type = ID_PS_HLSL_SHADER;
 const int table_type = 5;
 const int vx_type = 6;
 const int str_type = 7;

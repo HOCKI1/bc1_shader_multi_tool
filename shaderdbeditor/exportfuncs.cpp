@@ -5,6 +5,9 @@
 #include <map>
 #include <unordered_map>
 
+#define MAX_ITEMS 3500
+
+
 typedef struct
 {
 	uint32_t final_index;
@@ -204,6 +207,49 @@ void copy_vals(table_parent* &dst, table_parent *src, char* table_src)
 }
 
 
+void export_hlsl(database_export* new_db,char* dst_folder) // finish this func 
+{
+	char* vertex_bfr = (char*)malloc(20000 * sizeof(char));
+	char* pixel_bfr = (char*)malloc(20000 * sizeof(char));
+	char* temp_name[400];
+	FILE* dummy;
+	std::string folder(dst_folder);
+	folder += "\\";
+	std::string vs_base = "Vertex_Shader_";
+	std::string ps_base = "Pixel_Shader_";
+	std::string obf = "_obf";
+	std::string extension = ".hlsl";
+
+	for (uint32_t i = 0; i < new_db->n_shaders; i++)
+	{
+		for (uint32_t j = 0; j < new_db->shaders[i].tables_ref->n_table_refs; j++)
+		{
+			if (new_db->shaders[i].table_members[j].vs_shader->lparam_data.selected)
+			{
+				std::string index_s = std::to_string(i);
+				std::string index_t = std::to_string(j);
+				dummy = fopen((folder+vs_base+ index_s +"_"+ index_t+extension).c_str(), "w+b");
+				fwrite(new_db->shaders[i].table_members[j].vs_shader->shader, 1, *new_db->shaders[i].table_members[j].vs_shader->vs_size, dummy);
+				fclose(dummy);
+				new_db->shaders[i].table_members[j].vs_shader->lparam_data.selected = FALSE;
+			}
+			if (new_db->shaders[i].table_members[j].ps_shader->lparam_data.selected)
+			{
+				std::string index_s = std::to_string(i);
+				std::string index_t = std::to_string(j);
+				dummy = fopen((folder + ps_base + index_s + "_" + index_t + extension).c_str(), "w+b");
+				fwrite(new_db->shaders[i].table_members[j].ps_shader->shader, 1, *new_db->shaders[i].table_members[j].ps_shader->ps_size, dummy);
+				fclose(dummy);
+				new_db->shaders[i].table_members[j].ps_shader->lparam_data.selected = FALSE;
+			}
+		}
+	}
+
+	free(vertex_bfr);
+	free(pixel_bfr);
+	return;
+}
+
 void export_str(HWND hwnd, database_export* new_db, char* output_name)
 {
 	char* str_bfr = (char*)malloc(1000000 * sizeof(char));
@@ -268,9 +314,9 @@ void export_db(HWND hwnd, database_export* new_db, char* output_name, int force_
 		snprintf(test, 5, "%d", errno);
 		MessageBoxA(hwnd, test, "ERROR", MB_OK);
 	}   
-	map_item* txe_storage = new map_item[3500];
-	map_item* vs_storage = new map_item[3500];
-	map_item* ps_storage = new map_item[3500];
+	map_item* txe_storage = new map_item[MAX_ITEMS];
+	map_item* vs_storage = new map_item[MAX_ITEMS];
+	map_item* ps_storage = new map_item[MAX_ITEMS];
 	uint16_t* table_write_idx;
 	uint32_t count = 0;
 	uint32_t txe_count = 0;
@@ -384,13 +430,11 @@ void export_db(HWND hwnd, database_export* new_db, char* output_name, int force_
 	*dummy_int = tables_count;
 	uint32_t acc = 0;
 	fwrite(&magic[0], 1, 5, output);
-	//write_buffer(txe_buffer,txe_count,txe_storage,output);
 	for (uint32_t i = 0; i<9;i++)
 	{
 		fwrite(buffers[i],1,buffers_size[i],output);
 	}
 	snprintf(test, 5, "%d", count);
-	MessageBoxA(hwnd, test, "selected count", MB_OK);
 	fclose(output);
 	free(txe_buffer);
 	free(table1_buffer);

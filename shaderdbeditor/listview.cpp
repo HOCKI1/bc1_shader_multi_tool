@@ -35,7 +35,7 @@ long _stdcall ListViewProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam
               //  if (itemclicked.iSubItem == 0) { width = width / 4; };
                 hwndEdit = CreateWindowA( "EDIT", "",
                     WS_CHILD | WS_VISIBLE | ES_WANTRETURN| ES_AUTOHSCROLL,
-                    subitemrect.left+3, subitemrect.top, width, height, hwnd, 0, GetModuleHandle(NULL), NULL);
+                    subitemrect.left+3, subitemrect.top+2, width, height, hwnd, 0, GetModuleHandle(NULL), NULL);
                 if (hwndEdit == NULL)
                 {
                     MessageBoxA(hwnd, "Could not create edit box.", "Error", MB_OK | MB_ICONERROR);
@@ -47,7 +47,7 @@ long _stdcall ListViewProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam
                 ListView_GetItemText(hwndList,iItem,1,temp,500);
                 SetWindowTextW(hwndEdit,temp);
                 SetFocus(hwndEdit);
-                ORIGINAL_EDIT_PROC = (WNDPROC)SetWindowLong(hwndEdit, GWL_WNDPROC, (LONG)EditProc);
+                ORIGINAL_EDIT_PROC = (WNDPROC)SetWindowLongPtr(hwndEdit, GWLP_WNDPROC, (LONG_PTR)EditProc);
                 delete[] temp;
             }
         }       

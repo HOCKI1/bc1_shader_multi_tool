@@ -19,6 +19,7 @@ void MenuTool(HWND hwnd,HMENU &hMenu,HMENU &hSubMenu,HMENU& hDebugMenu) {
     hDebugMenu = CreatePopupMenu();
     AppendMenuA(hMenu, MF_STRING | MF_DISABLED, ID_UPDATE_LV, "&Update View");
     AppendMenuA(hMenu, MF_STRING | MF_POPUP | MF_DISABLED, (UINT)hDebugMenu, "&Debug Views");
+    AppendMenuA(hMenu, MF_STRING | MF_DISABLED, ID_ASSETC_START, "&Asset Creator");
     AppendMenuA(hDebugMenu, MF_STRING | MF_DISABLED, ID_TXE_VIEW, "&Texture List");
     AppendMenuA(hDebugMenu, MF_STRING | MF_DISABLED, ID_D3DPARAMS1_VIEW, "&D3D Params");
     AppendMenuA(hDebugMenu, MF_STRING | MF_DISABLED, ID_VERTEXSHADER_VIEW, "&Vertex Shaders");
@@ -44,6 +45,7 @@ void enable_menu(HWND hwnd, HMENU &hMenu, HMENU &hSubMenu, HMENU &hDebugMenu)
     EnableMenuItem(hMenu, ID_TABLES_VIEW, MF_ENABLED);
     EnableMenuItem(hMenu, ID_VBUFFERS_VIEW, MF_ENABLED);
     EnableMenuItem(hMenu, ID_STRINGS_VIEW, MF_ENABLED);
+    EnableMenuItem(hMenu, ID_ASSETC_START, MF_ENABLED);
     return;
 }
 
