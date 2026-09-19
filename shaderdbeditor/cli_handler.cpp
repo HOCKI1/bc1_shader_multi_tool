@@ -1,4 +1,4 @@
-﻿#define _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
 #include "framework.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,19 +75,20 @@ struct ParsedNode {
     uint32_t stride;
 };
 
-static std::vector<ParsedNode> scan_nodes(const char* buf, long payload_off) {
+static std::vector<ParsedNode> scan_nodes(const char* buf, long payload_off, uint32_t vbuf_size, uint32_t ibuf_size) {
     std::vector<ParsedNode> nodes;
+    uint32_t n_total_indices = ibuf_size / 2;
     long p = 7;
     while (p < payload_off - 30) {
         unsigned char c = (unsigned char)buf[p];
         if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
             const char* null_pos = (const char*)memchr(buf + p, 0, 128);
-            if (null_pos && (null_pos - (buf + p) > 0)) {
+            if (null_pos && (null_pos - (buf + p) >= 2)) {
                 size_t nlen = null_pos - (buf + p);
                 bool valid_id = true;
                 for (size_t k = 0; k < nlen; k++) {
                     char ch = buf[p + k];
-                    if (!isalnum((unsigned char)ch) && ch != '_') { valid_id = false; break; }
+                    if (!isalnum((unsigned char)ch) && ch != '_' && ch != '|') { valid_id = false; break; }
                 }
                 if (valid_id) {
                     long q = p + (long)nlen + 1;
@@ -102,16 +103,22 @@ static std::vector<ParsedNode> scan_nodes(const char* buf, long payload_off) {
                         uint16_t s2 = _byteswap_ushort(*(const uint16_t*)(buf + q + 20));
 
                         if (prim == 3 && s1 == s2 && vstride >= 8 && vstride <= 64 && n_faces > 0 && n_verts > 0) {
-                            ParsedNode node;
-                            node.name = std::string(buf + p, nlen);
-                            node.faces = n_faces;
-                            node.verts = n_verts;
-                            node.idx_start = idx_start;
-                            node.v_start = v_start;
-                            node.stride = vstride;
-                            nodes.push_back(node);
-                            p = q + 6 + s2 * 2;
-                            continue;
+                            if ((idx_start + n_faces * 3) <= n_total_indices && (v_start + n_verts * vstride) <= vbuf_size) {
+                                ParsedNode node;
+                                std::string raw_name(buf + p, nlen);
+                                for (size_t k = 0; k < raw_name.size(); k++) {
+                                    if (raw_name[k] == '|') raw_name[k] = '_';
+                                }
+                                node.name = raw_name;
+                                node.faces = n_faces;
+                                node.verts = n_verts;
+                                node.idx_start = idx_start;
+                                node.v_start = v_start;
+                                node.stride = vstride;
+                                nodes.push_back(node);
+                                p = q + 6 + s2 * 2;
+                                continue;
+                            }
                         }
                     }
                 }
@@ -169,7 +176,7 @@ static bool export_mesh_to_obj_impl(const char* meshdata_path, const char* out_o
     uint32_t n_total_indices = ibuf_size / 2;
     const uint16_t* p_idx_be = (const uint16_t*)ibuf_start;
 
-    std::vector<ParsedNode> all_nodes = scan_nodes(buf, payload_offset);
+    std::vector<ParsedNode> all_nodes = scan_nodes(buf, payload_offset, vbuf_size, ibuf_size);
     std::vector<ParsedNode> visual_nodes;
     for (size_t i = 0; i < all_nodes.size(); i++) {
         std::string lower_name = all_nodes[i].name;
@@ -198,6 +205,17 @@ static bool export_mesh_to_obj_impl(const char* meshdata_path, const char* out_o
         out_obj_path = default_out;
     }
 
+    char mtl_path[MAX_PATH];
+    strcpy(mtl_path, out_obj_path);
+    char* dot_mtl = strrchr(mtl_path, '.');
+    if (dot_mtl) *dot_mtl = '\0';
+    strcat(mtl_path, ".mtl");
+
+    const char* mtl_filename = strrchr(mtl_path, '\\');
+    if (!mtl_filename) mtl_filename = strrchr(mtl_path, '/');
+    if (mtl_filename) mtl_filename++;
+    else mtl_filename = mtl_path;
+
     FILE* out_f = fopen(out_obj_path, "w");
     if (!out_f) {
         printf("[!] Error: Failed to open '%s' for writing!\n", out_obj_path);
@@ -207,7 +225,8 @@ static bool export_mesh_to_obj_impl(const char* meshdata_path, const char* out_o
 
     fprintf(out_f, "# Exported by Frostbite Mesh Tool\n");
     fprintf(out_f, "# Source: %s\n", meshdata_path);
-    fprintf(out_f, "# Submeshes: %zu\n\n", visual_nodes.size());
+    fprintf(out_f, "# Submeshes: %zu\n", visual_nodes.size());
+    fprintf(out_f, "mtllib %s\n\n", mtl_filename);
 
     struct Tri { uint32_t i0, i1, i2; };
     struct SubmeshExport {
@@ -288,6 +307,7 @@ static bool export_mesh_to_obj_impl(const char* meshdata_path, const char* out_o
     fprintf(out_f, "\n");
     for (size_t s = 0; s < exported_submeshes.size(); s++) {
         fprintf(out_f, "g %s\n", exported_submeshes[s].name.c_str());
+        fprintf(out_f, "usemtl Mat_%s\n", exported_submeshes[s].name.c_str());
         for (size_t t = 0; t < exported_submeshes[s].tris.size(); t++) {
             const Tri& tri = exported_submeshes[s].tris[t];
             fprintf(out_f, "f %u/%u/%u %u/%u/%u %u/%u/%u\n",
@@ -298,6 +318,24 @@ static bool export_mesh_to_obj_impl(const char* meshdata_path, const char* out_o
     }
 
     fclose(out_f);
+
+    FILE* mtl_f = fopen(mtl_path, "w");
+    if (mtl_f) {
+        fprintf(mtl_f, "# Frostbite Mesh Tool MTL File\n");
+        fprintf(mtl_f, "# Material count: %zu\n\n", exported_submeshes.size());
+        for (size_t s = 0; s < exported_submeshes.size(); s++) {
+            fprintf(mtl_f, "newmtl Mat_%s\n", exported_submeshes[s].name.c_str());
+            fprintf(mtl_f, "Ka 1.000000 1.000000 1.000000\n");
+            fprintf(mtl_f, "Kd 0.800000 0.800000 0.800000\n");
+            fprintf(mtl_f, "Ks 0.200000 0.200000 0.200000\n");
+            fprintf(mtl_f, "Ns 50.000000\n");
+            fprintf(mtl_f, "d 1.000000\n");
+            fprintf(mtl_f, "illum 2\n\n");
+        }
+        fclose(mtl_f);
+        printf("[+] Generated material library: %s\n", mtl_path);
+    }
+
     free(buf);
 
     printf("[+] Successfully exported %u vertices and %u faces across %zu submeshes to:\n    %s\n",
