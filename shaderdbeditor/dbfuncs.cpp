@@ -1,7 +1,17 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "structs.h"
+#include <stdio.h>
 #include "funcs.h"
 #include <vector>
 #include <algorithm>
+#include <stdlib.h>
+
+FILE* dbg_log = NULL;
+#define LOG(...) { if(dbg_log) { fprintf(dbg_log, __VA_ARGS__); fflush(dbg_log); } }
+
+bool is_ps3 = false;
+inline uint32_t SWAP32_P(uint32_t* ptr) { if (is_ps3) *ptr = _byteswap_ulong(*ptr); return *ptr; }
+inline uint16_t SWAP16_P(uint16_t* ptr) { if (is_ps3) *ptr = _byteswap_ushort(*ptr); return *ptr; }
 
 const uint32_t txe_e_size = 140;
 const uint32_t txe_p_size = 56;
@@ -19,6 +29,7 @@ void shader_ref_look(void*& dbfile, database*& dbptr);
 
 database_export* export_db_init(database* &dbptr, void* dbfile)
 {
+	LOG("Entering export_db_init...\n");
 	database_export* new_db = new database_export;
 	new_db->systems_ref = dbptr->strings[1];
 	new_db->shaders = build_shaders(dbfile, dbptr, new_db->systems_ref);
@@ -36,6 +47,7 @@ database_export* export_db_init(database* &dbptr, void* dbfile)
 	new_db->n_ps = dbptr->n_ps_shader;
 	new_db->n_vs = dbptr->n_vs_shader;
 	new_db->n_table_elements = dbptr->n_table_elements;
+	LOG("export_db_init DONE\n");
 	return new_db;
 }
 
@@ -43,18 +55,25 @@ database_export* export_db_init(database* &dbptr, void* dbfile)
 database* dbfirstload(void* dbfile, uint32_t *ptr_end) 
 {
     uint32_t* ptr_temp = (uint32_t*)dbfile;
-	uint32_t position = (uint32_t)ptr_temp;
+	
+    uint32_t test_endian = *(uint32_t*)dbfile;
+    is_ps3 = ((test_endian & 0xFF000000) != 0);
+    dbg_log = fopen("parse_debug.log", "a");
+    LOG("is_ps3 = %d\n", is_ps3);
+    uint32_t position = (uint32_t)ptr_temp;
+
 	database* dbptr = new database;
-	txequicklook(dbfile, dbptr);
-	d3dparamslook(dbfile,dbptr);
-	vslook(dbfile, dbptr);
-	pslook(dbfile,dbptr);
-	tableslook(dbfile,dbptr);
-	vbufferslook(dbfile, dbptr);
-	stringslook(dbfile,dbptr);
-	shader_ref_look(dbfile, dbptr);
+	LOG("txequicklook...\n"); txequicklook(dbfile, dbptr); LOG("txequicklook DONE\n");
+	LOG("d3dparamslook...\n"); d3dparamslook(dbfile,dbptr); LOG("d3dparamslook DONE\n");
+	LOG("vslook...\n"); vslook(dbfile, dbptr); LOG("vslook DONE\n");
+	LOG("pslook...\n"); pslook(dbfile,dbptr); LOG("pslook DONE\n");
+	LOG("tableslook...\n"); tableslook(dbfile,dbptr); LOG("tableslook DONE\n");
+	LOG("vbufferslook...\n"); vbufferslook(dbfile, dbptr); LOG("vbufferslook DONE\n");
+	LOG("stringslook...\n"); stringslook(dbfile,dbptr); LOG("stringslook DONE\n");
+	LOG("shader_ref_look...\n"); shader_ref_look(dbfile, dbptr); LOG("shader_ref_look DONE\n");
 	position = (uint32_t)dbfile - position;
 	*ptr_end = position;
+	LOG("dbfirstload completely finished!\n");
 	return dbptr;
 }
 
@@ -96,20 +115,22 @@ shader_ref_struct* seek_table_ref_v2(void* dbfile, database*& dbptr, char* targe
 vxbuffer* seek_vxbuffer(database*& dbptr, char* target)
 {
 	int i = 0;
-	while ((strncmp(target, dbptr->vx_buffers[i].vxbuffer_id, 16)) && (i < dbptr->n_vx_buffers))
+	while (i < dbptr->n_vx_buffers && (strncmp(target, dbptr->vx_buffers[i].vxbuffer_id, 16)))
 	{
 		i++;
 	}
+	if (i >= dbptr->n_vx_buffers) return nullptr;
 	return &dbptr->vx_buffers[i];
 }
 
 string_ref* seek_parent(database*& dbptr, char* target, uint32_t* root_idx)
 {
 	int i = 0;
-	while ((strncmp(target, dbptr->strings[1][i].guid, 16)) && (i < dbptr->n_strings[1]))
+	while (i < dbptr->n_strings[1] && (strncmp(target, dbptr->strings[1][i].guid, 16)))
 	{
 		i++;
 	}
+	if (i >= dbptr->n_strings[1]) i = 0;
 	*root_idx = i;
 	return &dbptr->strings[1][i];
 }
@@ -160,17 +181,22 @@ void shader_ref_look(void*& dbfile, database*& dbptr)
 	int test = 0;
 	int acc = 0;
 	uint32_t* nelements = (uint32_t*)dbfile;
+	SWAP32_P(nelements);
+	LOG("shader_ref_look: nelements = %u\n", *nelements);
 	shader_ref_struct* shader_refs = new shader_ref_struct[*nelements];
 	char* dummy = (char*)dbfile + 4;
 	for (uint32_t i = 0; i < *nelements; i++)
 	{
 		shader_refs[i].id = dummy;
 		dummy += 16;
-		shader_refs[i].n_table_refs = (uint32_t)*dummy;
+		uint32_t* nt = (uint32_t*)dummy;
+		shader_refs[i].n_table_refs = SWAP32_P(nt);
 		dummy += 4;
-		shader_refs[i].table_refs = new uint16_t[shader_refs[i].n_table_refs];		
 		shader_refs[i].table_refs = (uint16_t*)dummy;
-		dummy += (2* shader_refs[i].n_table_refs);
+		for (uint32_t j = 0; j < shader_refs[i].n_table_refs; j++) {
+			SWAP16_P(&shader_refs[i].table_refs[j]);
+		}
+		dummy += (2 * shader_refs[i].n_table_refs);
 		acc += shader_refs[i].n_table_refs;
 	}
 	dbptr->shader_refs = shader_refs;
@@ -214,6 +240,8 @@ void stringslook(void* &dbfile,database* &dbptr)
 	for (int i = 0; i < 3; i++)
 	{
 		uint32_t* nelements = (uint32_t*)dbfile;
+		SWAP32_P(nelements);
+		LOG("stringslook[%d]: n_strings = %u\n", i, *nelements);
 		dbptr->n_strings[i] = *nelements;
 		dbptr->strings[i] = new string_ref[*nelements];
 		string_pass(dbfile,dbptr,*nelements, dbptr->strings[i], i);
@@ -224,33 +252,49 @@ void stringslook(void* &dbfile,database* &dbptr)
 void vbufferslook(void*& dbfile, database*& dbptr)
 {
 	uint32_t* nelements = (uint32_t*)dbfile;
+	SWAP32_P(nelements);
+	LOG("vbufferslook: n_vx_buffers = %u\n", *nelements);
 	vxbuffer* vxbuffers = new vxbuffer[*nelements];
 	char* dummy = (char*)dbfile + 4;
-	char* arrayread;
-	for (uint32_t i = 0; i < *nelements; i++)
-	{
-		arrayread = (dummy+16);
-		vxbuffers[i].vxbuffer_id = dummy;
-		vxbuffers[i].n_data_types = (uint8_t*)(dummy + 80);
-		vxbuffers[i].type = (uint32_t*)(dummy + 81);
-		vxbuffers[i].vx_stride = (uint8_t*)(dummy + 85);
-		if (*vxbuffers[i].type != 4294967040)
-		{	
+	if (is_ps3) {
+		for (uint32_t i = 0; i < *nelements; i++)
+		{
+			vxbuffers[i].vxbuffer_id = dummy;
+			vxbuffers[i].n_data_types = (uint8_t*)(dummy + 16);
+			vxbuffers[i].type = (uint32_t*)(dummy + 17);
+			vxbuffers[i].vx_stride = (uint8_t*)(dummy + 21);
 			vxbuffers[i].unknown_data = (dummy + 16);
 			vxbuffers[i].n_wnds = 3;
+			vxbuffers[i].initialize_items = TRUE;
+			dummy += 175;
 		}
-		else 
+	} else {
+		char* arrayread;
+		for (uint32_t i = 0; i < *nelements; i++)
 		{
-			vxbuffers[i].types_array = new uint16_t*[*vxbuffers[i].n_data_types];
-			for (uint32_t j = 0; j < *vxbuffers[i].n_data_types; j++)
-			{
-				vxbuffers[i].types_array[j] = (uint16_t*)(arrayread);
-				arrayread += 4;
+			arrayread = (dummy+16);
+			vxbuffers[i].vxbuffer_id = dummy;
+			vxbuffers[i].n_data_types = (uint8_t*)(dummy + 80);
+			vxbuffers[i].type = (uint32_t*)(dummy + 81);
+			vxbuffers[i].vx_stride = (uint8_t*)(dummy + 85);
+			if (*vxbuffers[i].type != 4294967040)
+			{	
+				vxbuffers[i].unknown_data = (dummy + 16);
+				vxbuffers[i].n_wnds = 3;
 			}
-			vxbuffers[i].n_wnds = 4 + *vxbuffers[i].n_data_types;
+			else 
+			{
+				vxbuffers[i].types_array = new uint16_t*[*vxbuffers[i].n_data_types];
+				for (uint32_t j = 0; j < *vxbuffers[i].n_data_types; j++)
+				{
+					vxbuffers[i].types_array[j] = (uint16_t*)(arrayread);
+					arrayread += 4;
+				}
+				vxbuffers[i].n_wnds = 4 + *vxbuffers[i].n_data_types;
+			}
+			dummy += 89;
+			vxbuffers[i].initialize_items = TRUE;
 		}
-		dummy += 89;
-		vxbuffers[i].initialize_items = TRUE;
 	}
 	dbptr->vx_buffers = vxbuffers;
 	dbptr->n_vx_buffers = *nelements;
@@ -261,6 +305,8 @@ void vbufferslook(void*& dbfile, database*& dbptr)
 void tableslook(void* &dbfile,database* &dbptr)
 {
 	uint32_t* nelements = (uint32_t*)dbfile;
+	SWAP32_P(nelements);
+	LOG("tableslook: n_table_elements = %u\n", *nelements);
 	table_parent* table_p = new table_parent[*nelements];
 	table_child* table_c = new table_child[*nelements];
 	char* dummy = (char*)dbfile + 4;
@@ -268,14 +314,14 @@ void tableslook(void* &dbfile,database* &dbptr)
 	{
 		table_p[i].element_id = dummy;
 		dummy += 16;
-		table_p[i].unknown1 = (uint32_t*)(dummy);
-		table_p[i].unknown2 = (uint32_t*)(dummy + 4);
-		table_p[i].temp_hash = (uint32_t*)(dummy + 8);
-		table_p[i].null_int = (uint32_t*)(dummy + 12);
-		table_p[i].vs_ref = (uint32_t*)(dummy + 16);
-		table_p[i].ps_ref = (uint32_t*)(dummy + 20);
-		table_p[i].txe_ref1 = (uint32_t*)(dummy + 24);
-		table_p[i].txe_ref2 = (uint32_t*)(dummy + 28);
+		table_p[i].unknown1 = (uint32_t*)(dummy); SWAP32_P(table_p[i].unknown1);
+		table_p[i].unknown2 = (uint32_t*)(dummy + 4); SWAP32_P(table_p[i].unknown2);
+		table_p[i].temp_hash = (uint32_t*)(dummy + 8); SWAP32_P(table_p[i].temp_hash);
+		table_p[i].null_int = (uint32_t*)(dummy + 12); SWAP32_P(table_p[i].null_int);
+		table_p[i].vs_ref = (uint32_t*)(dummy + 16); SWAP32_P(table_p[i].vs_ref);
+		table_p[i].ps_ref = (uint32_t*)(dummy + 20); SWAP32_P(table_p[i].ps_ref);
+		table_p[i].txe_ref1 = (uint32_t*)(dummy + 24); SWAP32_P(table_p[i].txe_ref1);
+		table_p[i].txe_ref2 = (uint32_t*)(dummy + 28); SWAP32_P(table_p[i].txe_ref2);
 		table_p[i].ps_shader = &dbptr->ps_shader[*table_p[i].ps_ref];
 		table_p[i].vs_shader = &dbptr->vs_shader[*table_p[i].vs_ref];
 		table_p[i].txeptr_null = &dbptr->txeptr[*table_p[i].txe_ref1];
@@ -284,6 +330,8 @@ void tableslook(void* &dbfile,database* &dbptr)
 		table_p[i].initialize_items = TRUE;
 		dummy += 32;
 	}
+	uint32_t* dummy_cnt = (uint32_t*)dummy;
+	SWAP32_P(dummy_cnt);
 	dummy += 4;
 	for (uint32_t i = 0; i < *nelements; i++)
 	{
@@ -292,7 +340,7 @@ void tableslook(void* &dbfile,database* &dbptr)
 		table_c[i].vbuffer_id = (dummy+32);
 		table_c[i].unknown_data = (dummy+48);
 		table_p[i].child = &table_c[i]; 
-		dummy+=88;
+		dummy += (is_ps3 ? 92 : 88);
 	}
 	dbptr->table = table_p;
 	dbptr->n_table_elements = *nelements;
@@ -303,6 +351,8 @@ void tableslook(void* &dbfile,database* &dbptr)
 void pslook(void*& dbfile, database*& dbptr)
 {
 	uint32_t* nelements = (uint32_t*)dbfile;
+	SWAP32_P(nelements);
+	LOG("pslook: n_ps_shader = %u\n", *nelements);
 	uint32_t dummyint;
 	bc2_ps* pxshdr = new bc2_ps[*nelements];
 	char* dummy = (char*)dbfile + 4;
@@ -310,15 +360,18 @@ void pslook(void*& dbfile, database*& dbptr)
 		pxshdr[i].psid = dummy;
 		dummy += 16;
 		pxshdr[i].ps_size = (uint32_t*)dummy;
-		dummyint = *pxshdr[i].ps_size;
+		dummyint = SWAP32_P(pxshdr[i].ps_size);
 		dummy += 4;
 		pxshdr[i].shader = dummy;
 		dummy += dummyint;
 		pxshdr[i].txeindex = (uint32_t*)dummy;
+		SWAP32_P(pxshdr[i].txeindex);
 		dummy += 4;
 		pxshdr[i].d3d1p = (uint32_t*)dummy;
+		SWAP32_P(pxshdr[i].d3d1p);
 		dummy += 4;
 		pxshdr[i].d3d2p = (uint32_t*)dummy;
+		SWAP32_P(pxshdr[i].d3d2p);
 		dummy += 4;
 		pxshdr[i].total_size = (dummy - pxshdr[i].psid);
 		pxshdr[i].txeptr = &dbptr->txeptr[*pxshdr[i].txeindex];
@@ -334,6 +387,8 @@ void pslook(void*& dbfile, database*& dbptr)
 void vslook(void*& dbfile, database*& dbptr)
 {
 	uint32_t* nelements = (uint32_t*)dbfile;
+	SWAP32_P(nelements);
+	LOG("vslook: n_vs_shader = %u\n", *nelements);
 	uint32_t dummyint;
 	bc2_vs* vxshdr = new bc2_vs[*nelements];
 	char* dummy = (char*)dbfile + 4;
@@ -341,24 +396,33 @@ void vslook(void*& dbfile, database*& dbptr)
 		vxshdr[i].vsid = dummy; 
 		dummy += 16;
 		vxshdr[i].vs_size = (uint32_t*)dummy;
-		dummyint = *vxshdr[i].vs_size;
+		dummyint = SWAP32_P(vxshdr[i].vs_size);
 		dummy += 4;
 		vxshdr[i].shader = dummy; 
 		dummy += dummyint; 
-		vxshdr[i].txeindex = (uint32_t*)dummy; 
+		vxshdr[i].txeindex = (uint32_t*)dummy;
+		SWAP32_P(vxshdr[i].txeindex);
 		dummy += 4;
 		vxshdr[i].d3d1p = (uint32_t*)dummy;
+		SWAP32_P(vxshdr[i].d3d1p);
 		dummy += 4;
 		vxshdr[i].d3d2p = (uint32_t*)dummy;
+		SWAP32_P(vxshdr[i].d3d2p);
 		dummy += 4;
-		vxshdr[i].obf_size = (uint32_t*)dummy;
-		dummy += 4;
-		vxshdr[i].obf_shader = dummy;
-		dummyint = *vxshdr[i].obf_size;
-		dummy += dummyint;
-		vxshdr[i].n_txcoord = (uint32_t*)dummy;
-		dummyint = *vxshdr[i].n_txcoord;
-		dummy += ((dummyint * 7) * 4) + (dummyint*9) + 8;
+		if (is_ps3) {
+			vxshdr[i].obf_size = nullptr;
+			vxshdr[i].obf_shader = nullptr;
+			vxshdr[i].n_txcoord = nullptr;
+		} else {
+			vxshdr[i].obf_size = (uint32_t*)dummy;
+			dummyint = SWAP32_P(vxshdr[i].obf_size);
+			dummy += 4;
+			vxshdr[i].obf_shader = dummy;
+			dummy += dummyint;
+			vxshdr[i].n_txcoord = (uint32_t*)dummy;
+			dummyint = SWAP32_P(vxshdr[i].n_txcoord);
+			dummy += ((dummyint * 7) * 4) + (dummyint*9) + 8;
+		}
 		vxshdr[i].total_size = (dummy - vxshdr[i].vsid);
 		vxshdr[i].txeptr = &dbptr->txeptr[*vxshdr[i].txeindex];
 		vxshdr[i].initialize_items = TRUE;
@@ -370,10 +434,11 @@ void vslook(void*& dbfile, database*& dbptr)
 	return;
 }
 
-
 void d3dparamslook(void* &dbfile, database*& dbptr)
 {
 	uint32_t* nelements = (uint32_t*)dbfile;
+	SWAP32_P(nelements);
+	LOG("d3dparamslook: n_d3d_p1 = %u\n", *nelements);
 	uint32_t* ebase2;
 	uint16_t* ebase;    
 	dbptr->d3dparams_block = (char*)dbfile;
@@ -381,27 +446,31 @@ void d3dparamslook(void* &dbfile, database*& dbptr)
 	char* dummy = (char*)dbfile + 4;
 	for (uint32_t i = 0; i < *nelements; i++) {
 		ebase = (uint16_t*)dummy;
+		SWAP16_P(ebase);
 		dummy += (*ebase * 4) + 4;
 	}
-	dbptr->d3d_p1_size = dummy - dbfile;
-	nelements = (uint32_t*)dummy; 
+	dbptr->d3d_p1_size = dummy - (char*)dbfile;
+	nelements = (uint32_t*)dummy;
+	SWAP32_P(nelements);
+	LOG("d3dparamslook: n_d3d_p2 = %u\n", *nelements);
 	dummy += 4;
 	for (uint32_t i = 0; i < *nelements; i++) {
 		ebase2 = (uint32_t*)dummy;
+		SWAP32_P(ebase2);
 		dummy += (*ebase2 * 4) + 4;
-	
 	}
-	dbptr->d3dparams_size = (dummy-dbfile);
+	dbptr->d3dparams_size = (dummy - (char*)dbfile);
 	dbfile = dummy; 
 	return;
 }
 
 void txequicklook(void* &dbfile, database* &dbptr) 
 {
-
 	char* dummy = (char*)dbfile + 5;
 	char* traverse; 
 	uint32_t* ntxeptr = (uint32_t*)dummy;
+	SWAP32_P(ntxeptr);
+	LOG("txequicklook: ntxe = %u\n", *ntxeptr);
 	uint32_t* ptr1;
 	TxE* txelist;
 	txe_e* txnames;
@@ -412,16 +481,16 @@ void txequicklook(void* &dbfile, database* &dbptr)
 	dummy += 4;
 	for (int i = 0; i < dbptr->ntxe; i++) {
 		ptr1 = (uint32_t*)dummy;
-		txelist[i].esize = *ptr1;
+		txelist[i].esize = SWAP32_P(ptr1);
 		txelist[i].eptr = (uint32_t*)dummy;
 		traverse = dummy + 8;
-		txelist[i].hsize = (uint32_t*)traverse;
+		txelist[i].hsize = (uint32_t*)traverse; SWAP32_P(txelist[i].hsize);
 		traverse += 4;
-		txelist[i].gameparamsoffset = (uint32_t*)traverse;
+		txelist[i].gameparamsoffset = (uint32_t*)traverse; SWAP32_P(txelist[i].gameparamsoffset);
 		traverse += 4;
-		txelist[i].filetypeoffset = (uint32_t*)traverse;
+		txelist[i].filetypeoffset = (uint32_t*)traverse; SWAP32_P(txelist[i].filetypeoffset);
 		traverse += 4;
-		txelist[i].unknowndata = (uint32_t*)traverse;
+		txelist[i].unknowndata = (uint32_t*)traverse; SWAP32_P(txelist[i].unknowndata);
 		traverse += 7;
 		txelist[i].ntxt = (uint8_t*)traverse;
 		traverse += 1;
@@ -434,7 +503,8 @@ void txequicklook(void* &dbfile, database* &dbptr)
 		if (*txelist[i].ntxt > 0) {
 			txnames = new txe_e[*txelist[i].ntxt];
 			for (int j = 0; j < *txelist[i].ntxt; j++) {
-				txnames[j].index = (uint32_t*)traverse; 
+				txnames[j].index = (uint32_t*)traverse;
+				SWAP32_P(txnames[j].index);
 				txnames[j].name = traverse+4; 
 				traverse += 140;
 			}
@@ -469,7 +539,6 @@ void txequicklook(void* &dbfile, database* &dbptr)
 
 TxE* txe_individual_assign(char* src)
 {
-
 	char* dummy = src;
 	char* traverse;
 	uint32_t* ptr1;
@@ -480,16 +549,16 @@ TxE* txe_individual_assign(char* src)
 	txelist = new TxE[1];
 	for (int i = 0; i < 1; i++) {
 		ptr1 = (uint32_t*)dummy;
-		txelist[i].esize = *ptr1;
+		txelist[i].esize = SWAP32_P(ptr1);
 		txelist[i].eptr = (uint32_t*)dummy;
 		traverse = dummy + 8;
-		txelist[i].hsize = (uint32_t*)traverse;
+		txelist[i].hsize = (uint32_t*)traverse; SWAP32_P(txelist[i].hsize);
 		traverse += 4;
-		txelist[i].gameparamsoffset = (uint32_t*)traverse;
+		txelist[i].gameparamsoffset = (uint32_t*)traverse; SWAP32_P(txelist[i].gameparamsoffset);
 		traverse += 4;
-		txelist[i].filetypeoffset = (uint32_t*)traverse;
+		txelist[i].filetypeoffset = (uint32_t*)traverse; SWAP32_P(txelist[i].filetypeoffset);
 		traverse += 4;
-		txelist[i].unknowndata = (uint32_t*)traverse;
+		txelist[i].unknowndata = (uint32_t*)traverse; SWAP32_P(txelist[i].unknowndata);
 		traverse += 7;
 		txelist[i].ntxt = (uint8_t*)traverse;
 		traverse += 1;
@@ -502,7 +571,7 @@ TxE* txe_individual_assign(char* src)
 		if (*txelist[i].ntxt > 0) {
 			txnames = new txe_e[*txelist[i].ntxt];
 			for (int j = 0; j < *txelist[i].ntxt; j++) {
-				txnames[j].index = (uint32_t*)traverse;
+				txnames[j].index = (uint32_t*)traverse; SWAP32_P(txnames[j].index);
 				txnames[j].name = traverse + 4;
 				traverse += 140;
 			}
@@ -530,4 +599,3 @@ TxE* txe_individual_assign(char* src)
 	}
 	return &txelist[0];
 }
-

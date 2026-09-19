@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "assetc_meshset_funcs.h"
 
 #define RIGID_MESH 0

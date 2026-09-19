@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "assetc_txt_funcs.h"
 
 char* get_line_end(char* src)

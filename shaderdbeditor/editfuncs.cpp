@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "editfuncs.h"
 
 // most of the functions that write to the pool are here, except for import_db which is on another file

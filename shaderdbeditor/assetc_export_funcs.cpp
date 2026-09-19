@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "assetc_export_funcs.h"
 #include "assetc_meshset_funcs.h"
 #include "assetc_fbx_funcs.h"
@@ -215,7 +216,7 @@ LRESULT CALLBACK assetc_export_wndproc(HWND hwnd, UINT message, WPARAM wParam, L
 		}
 		case ID_ASSETC_OPEN_MESHDATA:
 		{
-			ofn = open_dialog(hwnd, "Mesh Data(*.meshdata)\0*.meshdata\0\0 ");
+			ofn = open_dialog(hwnd, "All Files (*.*)\0*.*\0Mesh Data (*.meshdata)\0*.meshdata\0\0");
 			if (GetOpenFileNameA(&ofn))
 			{
 				strncpy(&ac_structs_pool->pool[ac_structs_pool->current_pos], ofn.lpstrFile, 400);

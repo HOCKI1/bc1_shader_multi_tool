@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #pragma once
 #include "Resource.h"
 #include "funcs.h"
@@ -17,6 +18,7 @@
 #include "editfuncs.h"
 #include "importfuncs.h"
 #include "assetc.h"
+#include "cli_handler.h"
 
 #pragma comment(linker,"\"/manifestdependency:type='win32' \
 name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
@@ -121,10 +123,27 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 static char* dbfile;
                 static int dbsize;           
                 strncpy(szFileName, ofn.lpstrFile, 400);
-                shdrdb = fopen(szFileName, "r+b");
-                fseek(shdrdb, SEEK_SET, SEEK_END);
+                FILE* main_dbg = fopen("parse_debug.log", "w");
+                if (main_dbg) {
+                    fprintf(main_dbg, "Selected file: %s\n", szFileName);
+                    fflush(main_dbg);
+                }
+                shdrdb = fopen(szFileName, "rb");
+                if (!shdrdb) {
+                    if (main_dbg) {
+                        fprintf(main_dbg, "Error: Failed to fopen '%s' for reading!\n", szFileName);
+                        fclose(main_dbg);
+                    }
+                    MessageBoxA(hwnd, "Cannot open file for reading!", "Error", MB_ICONERROR);
+                    break;
+                }
+                fseek(shdrdb, 0, SEEK_END);
                 dbsize = ftell(shdrdb);
                 fseek(shdrdb, 0, SEEK_SET);
+                if (main_dbg) {
+                    fprintf(main_dbg, "File size: %d bytes\n", dbsize);
+                    fclose(main_dbg);
+                }
                 dbfile = (char*)malloc(dbsize * sizeof(char));
                 fread(dbfile, 1, dbsize, shdrdb);
                 fclose(shdrdb);
@@ -198,7 +217,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         case ID_EXPORT_DB:
         {
-            OPENFILENAMEA ofn_output = get_output_file_name(hwnd, "Dx11 Shader Database (*.dx11shaderdatabase)\0*.dx11shaderdatabase");
+            OPENFILENAMEA ofn_output = get_output_file_name(hwnd, "All Supported Shaders\0*.dx11shaderdatabase;*.ps3shaderdatabase\0All Files (*.*)\0*.*\0");
             if (GetSaveFileNameA(&ofn_output))
             {
                 char output_name[400];
@@ -240,6 +259,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
             break;
         case ID_EXPORT_STR:
+{
             OPENFILENAMEA ofn_output = get_output_file_name(hwnd, "Strings (*.dx11strings)\0*.dx11strings");
             if (GetSaveFileNameA(&ofn_output))
             {
@@ -248,8 +268,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 export_str(hwnd, new_db, output_name);
             }
             break;
+}
+
         case ID_IMPORT_DB:
-            OPENFILENAMEA ofn_db = get_output_file_name(hwnd, "Dx11 Shader Database (*.dx11shaderdatabase)\0*.dx11shaderdatabase");
+{
+            OPENFILENAMEA ofn_db = get_output_file_name(hwnd, "All Supported Shaders\0*.dx11shaderdatabase;*.ps3shaderdatabase\0All Files (*.*)\0*.*\0");
             if (GetOpenFileNameA(&ofn_db))
             {
                 char output_name[400];
@@ -259,6 +282,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 assetc_n_vx_buffers = new_db->n_vx_buffers;
             }          
             break;
+}
+
         case ID_SAVE_DB:
             export_db(hwnd, new_db, szFileName,1);
             ZeroMemory(file_edit_pool.pool, 1000000 * sizeof(char));
@@ -668,6 +693,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR args, int ncmdshow) {
+    if (run_cli(__argc, __argv)) return 0;
     WNDCLASSEX wc;
     WNDCLASSEX wc_assetc;
     HWND hwnd;

@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "assetc.h"
 #include "assetc_structs.h"
 #include "assetc_meshset_funcs.h"
@@ -205,8 +206,7 @@ LRESULT CALLBACK assetc_wndproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
             char* meshdata_path = (char*)malloc(sizeof(char) * 384);
             char* dot_index;
             meshdata* temp_meshdata = nullptr;
-            ofn = open_dialog(hwnd, "MeshData (*.meshdata*)\0*.meshdata*\0\0 ");
-            uint32_t type;
+            ofn = open_dialog(hwnd, "All Files (*.*)\0*.*\0Mesh Data (*.meshdata)\0*.meshdata\0\0");
             if (GetOpenFileNameA(&ofn))
             {
                 strncpy(&meshdata_path[0], ofn.lpstrFile, 384);
@@ -379,14 +379,15 @@ HMENU init_meshdata_menu(HWND hwnd)
 OPENFILENAMEA open_dialog(HWND hwnd, const char* filters)
 {
     OPENFILENAMEA ofn;
-    char szFileName[384] = { 0 };
+    static char szFileName[MAX_PATH] = { 0 };
+    szFileName[0] = '\0';
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = hwnd;
-    ofn.lpstrFilter = filters;
+    ofn.lpstrFilter = filters ? filters : "All Files (*.*)\0*.*\0\0";
     ofn.lpstrFile = &szFileName[0];
-    ofn.nMaxFile = 384;
-    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
     ofn.lpstrDefExt = 0;
     return ofn;
 }

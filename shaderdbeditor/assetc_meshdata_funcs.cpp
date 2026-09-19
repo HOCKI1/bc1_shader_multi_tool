@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "assetc_meshdata_funcs.h"
 #include "assetc_vbuf_actuators.h"
 #include <map>

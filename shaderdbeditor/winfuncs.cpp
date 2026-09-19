@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "funcs.h"
 #include "structs.h"
 #include <string>
@@ -23,7 +24,7 @@ bool hide_tree(HWND hwndTV, int& treesize);
 OPENFILENAMEA get_output_file_name(HWND hwnd, const char* prefix)
 {
     OPENFILENAMEA ofn;
-    char szFileName[400] = "";
+    static char szFileName[400] = "";
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn); // SEE NOTE BELOW
     ofn.hwndOwner = hwnd;
@@ -681,14 +682,14 @@ BOOL set_col_val(HWND hWndListView, LVITEMW &lv_item, uint32_t index, uint32_t c
 OPENFILENAMEA open_db(HWND hwnd)
 {
     OPENFILENAMEA ofn;
-    char szFileName[MAX_PATH] = "";
+    static char szFileName[MAX_PATH] = "";
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn); // SEE NOTE BELOW
     ofn.hwndOwner = hwnd;
-    ofn.lpstrFilter = "Dx11 Shader Database (*.dx11shaderdatabase)\0*.dx11shaderdatabase";
+    ofn.lpstrFilter = "All Supported Shaders\0*.dx11shaderdatabase;*.ps3shaderdatabase\0All Files (*.*)\0*.*\0";
     ofn.lpstrFile = szFileName;
     ofn.nMaxFile = MAX_PATH;
-    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
     ofn.lpstrDefExt = "txt";
     return ofn;
 }

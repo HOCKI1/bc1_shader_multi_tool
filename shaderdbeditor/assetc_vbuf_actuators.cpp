@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "assetc_vbuf_actuators.h"
 
 uint32_t vec3_fp16_extractor(char* vxbuffer, float* coords_array)

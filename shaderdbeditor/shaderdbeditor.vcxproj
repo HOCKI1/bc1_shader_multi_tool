@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version='1.0' encoding='utf-8'?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -142,7 +142,8 @@
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
+      <EntryPointSymbol>WinMainCRTStartup</EntryPointSymbol>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -176,8 +177,10 @@
     <ClInclude Include="targetver.h" />
     <ClInclude Include="funcs.h" />
     <ClInclude Include="showfuncs.h" />
+    <ClInclude Include="cli_handler.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="cli_handler.cpp" />
     <ClCompile Include="assetc_export_funcs.cpp" />
     <ClCompile Include="assetc_fbx_funcs.cpp" />
     <ClCompile Include="assetc_import_funcs.cpp" />
@@ -215,4 +218,4 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
-</Project>
+<ItemDefinitionGroup><ClCompile><AdditionalIncludeDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.4\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories><PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;FBXSDK_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile><Link><AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.4\lib\vs2019\x64\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories><AdditionalDependencies>libfbxsdk.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies></Link></ItemDefinitionGroup></Project>

@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "assetc_import_funcs.h"
 #include "assetc_meshdata_funcs.h"
 #include <vector>

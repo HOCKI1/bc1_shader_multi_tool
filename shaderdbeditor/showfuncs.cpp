@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "showfuncs.h"
 #include "funcs.h"
 #include <sstream>

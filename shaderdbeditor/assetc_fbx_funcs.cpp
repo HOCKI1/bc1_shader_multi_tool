@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "assetc_fbx_funcs.h"
 
 #ifdef IOS_REF
